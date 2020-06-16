@@ -1,0 +1,292 @@
+%YAML 1.2
+---
+# http://www.sublimetext.com/docs/3/syntax.html
+name: (T)CSH
+file_extensions:
+  - csh
+  - tcsh
+  - .cshrc
+first_line_match: '^#!.*\b(tcsh|csh)|^#\s*-\*-[^*]*mode:\s*shell-script[^*]*-\*-'
+scope: source.shell.csh
+contexts:
+  main:
+    - include: comment
+    - include: pipeline
+    - include: list
+    - include: compound-command
+    - include: loop
+    - include: string
+    - include: variable
+    - include: interpolation
+    - include: redirection
+    - include: pathname
+    - include: keyword
+    - include: support
+  comment:
+    - match: '(?<!\S)(#)(?!\{).*$\n?'
+      scope: comment.line.number-sign.shell.csh
+      captures:
+        1: punctuation.definition.comment.shell.csh
+  compound-command:
+    - match: '(\[{2})'
+      captures:
+        1: punctuation.definition.logical-expression.shell.csh
+      push:
+        - meta_scope: meta.scope.logical-expression.shell.csh
+        - match: '(\]{2})'
+          captures:
+            1: punctuation.definition.logical-expression.shell.csh
+          pop: true
+        - include: logical-expression
+        - include: main
+    - match: (\()
+      captures:
+        1: punctuation.definition.subshell.shell.csh
+      push:
+        - meta_scope: meta.scope.subshell.shell.csh
+        - match: (\))
+          captures:
+            1: punctuation.definition.subshell.shell.csh
+          pop: true
+        - include: main
+    - match: '(?<=\s|^)(\{)(?=\s|$)'
+      captures:
+        1: punctuation.definition.group.shell.csh
+      push:
+        - meta_scope: meta.scope.group.shell.csh
+        - match: '(?<=^|;)\s*(\})'
+          captures:
+            1: punctuation.definition.group.shell.csh
+          pop: true
+        - include: main
+  interpolation:
+    - match: "`"
+      captures:
+        0: punctuation.definition.string.begin.shell.csh
+      push:
+        - meta_scope: string.interpolated.backtick.shell.csh
+        - match: "`"
+          captures:
+            0: punctuation.definition.string.end.shell.csh
+          pop: true
+        - match: '\\[`\\$]'
+          scope: constant.character.escape.shell.csh
+        - include: main
+    - match: \$\(
+      captures:
+        0: punctuation.definition.string.begin.shell.csh
+      push:
+        - meta_scope: string.interpolated.dollar.shell.csh
+        - match: \)
+          captures:
+            0: punctuation.definition.string.end.shell.csh
+          pop: true
+        - include: main
+  keyword:
+    - match: \b(?:if|then|else|select|case|continue|while|end|endif|endsw|foreach|switch)\b
+      scope: keyword.control.shell.csh
+    - match: '(?<![-/])\b(?:set|setenv|unset|unsetenv|@ )\b'
+      scope: storage.modifier.shell.csh
+  list:
+    - match: ;|&&|&|\|\|
+      scope: keyword.operator.list.shell.csh
+  logical-expression:
+    - match: '=[=~]?|!=?|<|>|&&|\|\|'
+      comment: do we want a special rule for ( expr )?
+      scope: keyword.operator.logical.shell.csh
+    - match: '(?<!\S)-(nt|ot|ef|eq|ne|l[te]|g[te]|[a-hknoprstuwxzOGLSN])'
+      scope: keyword.operator.logical.shell.csh
+  loop:
+    - match: '\b(foreach)\s+(?=\({2})'
+      captures:
+        1: keyword.control.shell.csh
+      push:
+        - meta_scope: meta.scope.for-loop.shell.csh
+        - match: \b(end)\b
+          captures:
+            1: keyword.control.shell.csh
+          pop: true
+        - include: main
+    - match: '\b(foreach)\s+((?:[^\s\\]|\\.)+)\b'
+      captures:
+        1: keyword.control.shell.csh
+        2: variable.other.loop.shell.csh
+      push:
+        - meta_scope: meta.scope.for-in-loop.shell.csh
+        - match: \b(end)\b
+          captures:
+            1: keyword.control.shell.csh
+          pop: true
+        - include: main
+    - match: \b(while)\b
+      captures:
+        1: keyword.control.shell.csh
+      push:
+        - meta_scope: meta.scope.while-loop.shell.csh
+        - match: \b(end)\b
+          captures:
+            1: keyword.control.shell.csh
+          pop: true
+        - include: main
+    - match: '\b(switch)\s+((?:[^\s\\]|\\.)+)\b'
+      captures:
+        1: keyword.control.shell.csh
+        2: variable.other.loop.shell.csh
+      push:
+        - meta_scope: meta.scope.select-block.shell.csh
+        - match: \b(endsw)\b
+          captures:
+            1: keyword.control.shell.csh
+          pop: true
+        - include: main
+    - match: \b(case)\b
+      captures:
+        1: keyword.control.shell.csh
+      push:
+        - meta_scope: meta.scope.case-block.shell.csh
+        - match: \b(esac)\b
+          captures:
+            1: keyword.control.shell.csh
+          pop: true
+        - match: \b(?:in)\b
+          captures:
+            1: keyword.control.shell.csh
+          push:
+            - meta_scope: meta.scope.case-body.shell.csh
+            - match: (?=\b(?:esac)\b)
+              pop: true
+            - include: comment
+            - include: main
+        - include: main
+    - match: \b(if)\b
+      captures:
+        1: keyword.control.shell.csh
+      push:
+        - meta_scope: meta.scope.if-block.shell.csh
+        - match: \b(fi|endif)\b
+          captures:
+            1: keyword.control.shell.csh
+          pop: true
+        - include: main
+  math:
+    - include: variable
+    - match: '\+{1,2}|-{1,2}|!|~|\*{1,2}|/|%|<[<=]?|>[>=]?|==|!=|^|\|{1,2}|&{1,2}|\?|\:|,|=|[*/%+\-&^|]=|<<=|>>='
+      scope: keyword.operator.arithmetic.shell.csh
+    - match: '0[xX]\h+'
+      scope: constant.numeric.hex.shell.csh
+    - match: '0\d+'
+      scope: constant.numeric.octal.shell.csh
+    - match: '\d{1,2}#[0-9a-zA-Z@_]+'
+      scope: constant.numeric.other.shell.csh
+    - match: \d+
+      scope: constant.numeric.integer.shell.csh
+  pathname:
+    - match: (?<=\s|:|=|^)~
+      scope: keyword.operator.tilde.shell.csh
+    - match: \*|\?
+      scope: keyword.operator.glob.shell.csh
+    - match: '([?*+@!])(\()'
+      captures:
+        1: keyword.operator.extglob.shell.csh
+        2: punctuation.definition.extglob.shell.csh
+      push:
+        - meta_scope: meta.structure.extglob.shell.csh
+        - match: (\))
+          captures:
+            1: punctuation.definition.extglob.shell.csh
+          pop: true
+        - include: main
+  pipeline:
+    - match: \b(time)\b
+      scope: keyword.other.shell.csh
+    - match: "[|!]"
+      scope: keyword.operator.pipe.shell.csh
+  redirection:
+    - match: '[><]\('
+      captures:
+        0: punctuation.definition.string.begin.shell.csh
+      push:
+        - meta_scope: string.interpolated.process-substitution.shell.csh
+        - match: \)
+          captures:
+            0: punctuation.definition.string.end.shell.csh
+          pop: true
+        - include: main
+    - match: '&>|\d*>&\d*|\d*(>>|>|<)|\d*<&|\d*<>'
+      comment: "valid: &>word >&word >word [n]>&[n] [n]<word [n]>word [n]>>word [n]<&word (last one is duplicate)"
+      scope: keyword.operator.redirect.shell.csh
+  string:
+    - match: \\.
+      scope: constant.character.escape.shell.csh
+    - match: "'"
+      captures:
+        0: punctuation.definition.string.begin.shell.csh
+      push:
+        - meta_scope: string.quoted.single.shell.csh
+        - match: "'"
+          captures:
+            0: punctuation.definition.string.end.shell.csh
+          pop: true
+    - match: \$?"
+      captures:
+        0: punctuation.definition.string.begin.shell.csh
+      push:
+        - meta_scope: string.quoted.double.shell.csh
+        - match: '"'
+          captures:
+            0: punctuation.definition.string.end.shell.csh
+          pop: true
+        - match: '\\[\$`"\\\n]'
+          scope: constant.character.escape.shell.csh
+        - include: variable
+        - include: interpolation
+    - match: \$'
+      captures:
+        0: punctuation.definition.string.begin.shell.csh
+      push:
+        - meta_scope: string.quoted.single.dollar.shell.csh
+        - match: "'"
+          captures:
+            0: punctuation.definition.string.end.shell.csh
+          pop: true
+        - match: \\(a|b|e|f|n|r|t|v|\\|')
+          scope: constant.character.escape.ansi-c.shell.csh
+        - match: '\\[0-9]{3}'
+          scope: constant.character.escape.octal.shell.csh
+        - match: '\\x[0-9a-fA-F]{2}'
+          scope: constant.character.escape.hex.shell.csh
+        - match: \\c.
+          scope: constant.character.escape.control-char.shell.csh
+  support:
+    - match: (?<=^|\s)(?::|\.)(?=\s|;|&|$)
+      scope: support.function.builtin.shell.csh
+    - match: '(?<![-/])\b(?:alias|bg|break|cd|command|complete|continue|dirs|echo|eval|exec|exit|false|fc|fg|filetest|getopts|glob|hash|history|jobs|kill|limit|logout|popd|printf|pushd|pwd|read|rehash|set|setenv|shift|source|suspend|test|time|times|true|type|umask|unalias|unset|unsetenv|wait|which)\b'
+      scope: support.function.builtin.shell.csh
+  variable:
+    - match: '(\$)[-*@#?$!0_]'
+      scope: variable.other.special.shell.csh
+      captures:
+        1: punctuation.definition.variable.shell.csh
+    - match: '(\$)[1-9]'
+      scope: variable.other.positional.shell.csh
+      captures:
+        1: punctuation.definition.variable.shell.csh
+    - match: '(\$)[a-zA-Z_][a-zA-Z0-9_]*'
+      scope: variable.other.normal.shell.csh
+      captures:
+        1: punctuation.definition.variable.shell.csh
+    - match: '\$\{'
+      captures:
+        0: punctuation.definition.variable.shell.csh
+      push:
+        - meta_scope: variable.other.bracket.shell.csh
+        - match: '\}'
+          captures:
+            0: punctuation.definition.variable.shell.csh
+          pop: true
+        - match: '!|:[-=?]?|\*|@|#{1,2}|%{1,2}|/'
+          scope: keyword.operator.expansion.shell.csh
+        - match: '(\[)([^\]]+)(\])'
+          captures:
+            1: punctuation.section.array.shell.csh
+            3: punctuation.section.array.shell.csh
