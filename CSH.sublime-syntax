@@ -6,6 +6,7 @@ file_extensions:
   - csh
   - tcsh
   - .cshrc
+  - .tcshrc
 first_line_match: '^#!.*\b(tcsh|csh)|^#\s*-\*-[^*]*mode:\s*shell-script[^*]*-\*-'
 scope: source.shell.csh
 contexts:
